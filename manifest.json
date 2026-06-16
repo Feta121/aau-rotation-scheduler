@@ -1,0 +1,21 @@
+{
+  "name": "AAU Rotation Scheduler",
+  "short_name": "RotSched",
+  "description": "Clinical rotation scheduler for AAU Anesthesia students",
+  "start_url": "/aau-rotation-scheduler/",
+  "display": "standalone",
+  "background_color": "#F2F0EC",
+  "theme_color": "#1C5F8B",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/1C5F8B/FFFFFF?text=RS",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/1C5F8B/FFFFFF?text=RS",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
