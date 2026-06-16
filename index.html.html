@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AAU Anesthesia — Rotation Scheduler</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F2F0EC;
+  --surface:#FFFFFF;
+  --surface2:#ECEAE5;
+  --surface3:#E4E2DC;
+  --border:#DDD9D0;
+  --border2:#C5C1B6;
+  --text:#18170F;
+  --text2:#5A574E;
+  --text3:#9C9890;
+  --accent:#1C5F8B;
+  --accent-d:#144770;
+  --accent-bg:#E6EFF6;
+  --accent-t:#0D3D5C;
+  --tash:#7A2E0E;
+  --tash-bg:#FEF0E6;
+  --green:#1A6B3C;
+  --green-bg:#E8F5EE;
+  --warn:#92400E;
+  --warn-bg:#FEF3C7;
+  --danger:#991B1B;
+  --danger-bg:#FEE2E2;
+  --r:8px;--rl:14px;
+  --nav:64px;
+  --sidebar:230px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh;line-height:1.55;font-size:15px}
+
+/* ── MOBILE NAV (bottom) ── */
+.bottom-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--nav);
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  z-index:100;
+  justify-content:space-around;
+  align-items:center;
+}
+.bnav-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  border:none;background:none;cursor:pointer;
+  color:var(--text3);font-size:10px;padding:6px 10px;border-radius:var(--r);
+  transition:color .15s;flex:1;
+}
+.bnav-btn svg{width:22px;height:22px}
+.bnav-btn.active{color:var(--accent)}
+
+/* ── DESKTOP SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar);
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  position:fixed;top:0;left:0;bottom:0;
+  display:flex;flex-direction:column;
+  overflow-y:auto;z-index:50;
+}
+.sidebar-brand{
+  padding:20px 18px 16px;
+  border-bottom:1px solid var(--border);
+}
+.brand-eyebrow{font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:5px}
+.brand-title{font-size:15px;font-weight:700;color:var(--text);line-height:1.3}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+.schedule-picker{padding:12px 10px 6px;border-bottom:1px solid var(--border)}
+.schedule-picker label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px}
+.schedule-select-wrap{position:relative}
+.schedule-select-wrap select{
+  width:100%;padding:7px 28px 7px 10px;
+  border:1px solid var(--border2);border-radius:var(--r);
+  font-size:13px;color:var(--text);background:var(--surface);
+  appearance:none;cursor:pointer;
+}
+.schedule-select-wrap::after{
+  content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);
+  font-size:12px;color:var(--text3);pointer-events:none;
+}
+.btn-new-sched{
+  margin-top:8px;width:100%;
+  display:flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:var(--r);
+  border:1px dashed var(--border2);background:none;
+  font-size:12px;color:var(--text2);cursor:pointer;
+  transition:background .15s;
+}
+.btn-new-sched:hover{background:var(--surface2)}
+
+.nav-section{padding:8px 8px 0}
+.nav-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:4px 8px 4px}
+.nav-btn{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 10px;border-radius:var(--r);
+  border:none;background:none;cursor:pointer;
+  font-size:13px;color:var(--text2);width:100%;text-align:left;
+  transition:background .15s,color .15s;
+}
+.nav-btn:hover{background:var(--surface2);color:var(--text)}
+.nav-btn.active{background:var(--accent-bg);color:var(--accent-t);font-weight:600}
+.nav-btn svg{width:16px;height:16px;flex-shrink:0;opacity:.7}
+.nav-btn.active svg{opacity:1}
+
+.sidebar-footer{margin-top:auto;padding:12px 10px;border-top:1px solid var(--border)}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sidebar);min-height:100vh;padding:28px 28px 60px}
+.page{display:none}
+.page.active{display:block}
+h2{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+h3{font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;margin-bottom:14px}
+.card-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+
+/* ── FORM ── */
+label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:4px}
+input[type=text],input[type=number],select,textarea{
+  width:100%;padding:8px 11px;
+  border:1px solid var(--border2);border-radius:var(--r);
+  font-size:14px;color:var(--text);background:var(--surface);
+  outline:none;font-family:inherit;transition:border-color .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+textarea{resize:vertical;min-height:80px}
+
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:var(--r);
+  font-size:13px;font-weight:500;cursor:pointer;
+  border:1px solid var(--border2);background:var(--surface);color:var(--text);
+  transition:background .15s;white-space:nowrap;
+}
+.btn:hover{background:var(--surface2)}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-d)}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border-color:#FECACA}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-icon{padding:5px;border-radius:6px}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-tash{background:var(--tash-bg);color:var(--tash)}
+.badge-accent{background:var(--accent-bg);color:var(--accent-t)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-danger{background:var(--danger-bg);color:var(--danger)}
+.badge-grey{background:var(--surface2);color:var(--text2)}
+
+/* ── ALERTS ── */
+.alert{padding:11px 14px;border-radius:var(--r);font-size:13px;line-height:1.5;margin-bottom:14px}
+.alert-info{background:var(--accent-bg);color:var(--accent-t);border:1px solid #BDD5E8}
+.alert-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #FDE68A}
+.alert-success{background:var(--green-bg);color:var(--green);border:1px solid #A7D7B9}
+.alert-danger{background:var(--danger-bg);color:var(--danger);border:1px solid #FECACA}
+
+/* ── HOSPITAL LIST ── */
+.hosp-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--border);
+}
+.hosp-item:last-child{border-bottom:none}
+.hosp-name{flex:1;font-size:14px;font-weight:500}
+.hosp-cap-input{width:66px}
+.hosp-cap-input input{padding:5px 8px;text-align:center}
+
+/* ── STUDENT LIST ── */
+.student-list{list-style:none;display:flex;flex-direction:column;gap:3px}
+.student-item{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 10px;background:var(--bg);border-radius:var(--r);font-size:13px;
+}
+.s-num{color:var(--text3);font-size:11px;width:22px;text-align:right;flex-shrink:0}
+
+/* ── SCHEDULE TABLE ── */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.schedule-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:500px}
+.schedule-tbl th{
+  background:var(--surface2);padding:8px 10px;
+  text-align:left;font-weight:600;font-size:11px;color:var(--text2);
+  border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;
+}
+.schedule-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.schedule-tbl tr:last-child td{border-bottom:none}
+.schedule-tbl tr:hover td{background:var(--bg)}
+.cell-tash{background:var(--tash-bg);color:var(--tash);font-weight:600;border-radius:4px;padding:2px 7px;white-space:nowrap;display:inline-block}
+.cell-empty{color:var(--text3)}
+
+/* ── PAST ROUNDS TABLE ── */
+.past-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.past-tbl th{background:var(--surface2);padding:6px 7px;font-weight:600;font-size:11px;color:var(--text2);border:1px solid var(--border);white-space:nowrap}
+.past-tbl td{padding:4px 5px;border:1px solid var(--border)}
+.past-tbl select{font-size:11px;padding:3px 4px;min-width:90px}
+
+/* ── OCCUPANCY DASHBOARD ── */
+.occ-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.occ-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px}
+.occ-card-title{font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.occ-round{margin-bottom:6px}
+.occ-round-label{font-size:11px;color:var(--text3);margin-bottom:3px}
+.occ-bar-wrap{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:3px}
+.occ-bar{height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
+.occ-bar.full{background:var(--danger)}
+.occ-bar.warn{background:var(--warn)}
+.occ-students{font-size:11px;color:var(--text2);display:flex;flex-wrap:wrap;gap:3px}
+.occ-student-tag{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px}
+
+/* ── STAT GRID ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:18px}
+.stat-card{background:var(--surface2);border-radius:var(--r);padding:12px 14px}
+.stat-num{font-size:24px;font-weight:700}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── GENERATE CHECKS ── */
+.gen-check{display:flex;align-items:center;gap:10px;font-size:13px;padding:9px 12px;background:var(--bg);border-radius:var(--r);margin-bottom:6px}
+.gen-check svg{width:17px;height:17px;flex-shrink:0}
+.check-ok{color:var(--green)}
+.check-warn{color:var(--warn)}
+.check-bad{color:var(--danger)}
+
+/* ── CONFLICT ── */
+.conflict-item{padding:7px 11px;background:var(--danger-bg);border-radius:var(--r);margin-bottom:5px;font-size:12px;color:var(--danger)}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+  z-index:200;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--rl);padding:22px;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.modal h3{margin-bottom:14px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* ── UTILS ── */
+.row{display:flex;gap:10px;align-items:flex-start}
+.row-center{display:flex;gap:10px;align-items:center}
+.flex1{flex:1}
+.divider{border:none;border-top:1px solid var(--border);margin:14px 0}
+.mt8{margin-top:8px}
+.mt12{margin-top:12px}
+.tag{display:inline-block;padding:2px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--text2)}
+.empty-state{text-align:center;padding:32px 16px;color:var(--text3);font-size:14px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:720px){
+  .sidebar{display:none}
+  .bottom-nav{display:flex}
+  .main{margin-left:0;padding:16px 14px 80px}
+  .occ-grid{grid-template-columns:1fr}
+}
+
+@media print{
+  .sidebar,.bottom-nav,.no-print{display:none!important}
+  .main{margin-left:0;padding:0}
+  .schedule-tbl td,.schedule-tbl th{font-size:11px;padding:4px 6px}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR (desktop) -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-eyebrow">AAU · Health Science</div>
+    <div class="brand-title">Rotation Scheduler</div>
+    <div class="brand-sub">Anesthesia &amp; Anesthesiology</div>
+  </div>
+
+  <div class="schedule-picker">
+    <label>Active schedule</label>
+    <div class="schedule-select-wrap">
+      <select id="schedule-selector" onchange="switchSchedule(this.value)"></select>
+    </div>
+    <button class="btn-new-sched" onclick="openNewScheduleModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New schedule
+    </button>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Setup</div>
+    <button class="nav-btn active" id="nb-hospitals" onclick="showPage('hospitals',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4"/></svg>Hospitals
+    </button>
+    <button class="nav-btn" id="nb-students" onclick="showPage('students',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Students
+    </button>
+    <button class="nav-btn" id="nb-past" onclick="showPage('past',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Past rounds
+    </button>
+  </div>
+  <div class="nav-section" style="margin-top:4px">
+    <div class="nav-label">Output</div>
+    <button class="nav-btn" id="nb-generate" onclick="showPage('generate',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Generate
+    </button>
+    <button class="nav-btn" id="nb-schedule" onclick="showPage('schedule',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule
+    </button>
+    <button class="nav-btn" id="nb-occupancy" onclick="showPage('occupancy',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Occupancy
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <button class="nav-btn" id="nb-data" onclick="showPage('data',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Save / Load
+    </button>
+  </div>
+</nav>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav">
+  <button class="bnav-btn active" id="mn-hospitals" onclick="showPage('hospitals',this,true)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4"/></svg>Hospitals
+  </button>
+  <button class="bnav-btn" id="mn-students" onclick="showPage('students',this,true)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Students
+  </button>
+  <button class="bnav-btn" id="mn-generate" onclick="showPage('generate',this,true)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Generate
+  </button>
+  <button class="bnav-btn" id="mn-schedule" onclick="showPage('schedule',this,true)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule
+  </button>
+  <button class="bnav-btn" id="mn-occupancy" onclick="showPage('occupancy',this,true)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard
+  </button>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ── HOSPITALS ── -->
+  <div id="page-hospitals" class="page active">
+    <h2>Hospitals</h2>
+    <p class="page-sub">Set capacity per round. TASH is required for every student.</p>
+    <div class="card">
+      <div class="card-title">
+        <h3 style="margin:0">Hospital list</h3>
+        <div class="btn-group">
+          <button class="btn btn-sm" onclick="resetHospitals()">↺ Reset to defaults</button>
+          <button class="btn btn-sm btn-primary" onclick="toggleAddHosp()">+ Add</button>
+        </div>
+      </div>
+      <div id="hospital-list"></div>
+    </div>
+    <div class="card" id="add-hosp-card" style="display:none">
+      <h3>Add hospital</h3>
+      <div class="row" style="margin-bottom:10px">
+        <div class="flex1"><label>Name</label><input type="text" id="new-hosp-name" placeholder="Hospital name"></div>
+        <div style="width:90px"><label>Capacity</label><input type="number" id="new-hosp-cap" min="1" value="5"></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="addHospital()">Add hospital</button>
+        <button class="btn" onclick="toggleAddHosp()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STUDENTS ── -->
+  <div id="page-students" class="page">
+    <h2>Students</h2>
+    <p class="page-sub">Paste names — one per line — from Excel, Word, or anywhere.</p>
+    <div class="card">
+      <h3>Paste student names</h3>
+      <div class="alert alert-info">One name per line. Paste from any source. Duplicates are ignored.</div>
+      <textarea id="student-paste" placeholder="Abdulfetah Kedir&#10;Fatima Abdi&#10;Yohannes Tadesse&#10;..."></textarea>
+      <div class="btn-group mt8">
+        <button class="btn btn-primary" onclick="importStudents()">Import names</button>
+        <button class="btn btn-danger" onclick="clearStudents()">Clear all</button>
+      </div>
+    </div>
+    <div class="card" id="student-list-card" style="display:none">
+      <div class="card-title">
+        <h3 style="margin:0">Students <span id="student-count-badge" class="badge badge-accent"></span></h3>
+      </div>
+      <ul class="student-list" id="student-list"></ul>
+    </div>
+  </div>
+
+  <!-- ── PAST ROUNDS ── -->
+  <div id="page-past" class="page">
+    <h2>Past rounds</h2>
+    <p class="page-sub">Enter where students were placed in previous rounds so the scheduler can work from that.</p>
+    <div class="card">
+      <div class="row-center" style="margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div><label>Total rounds</label>
+          <select id="total-rounds" onchange="saveTotalRounds();renderPastTable()">
+            <option value="4">4 rounds</option>
+            <option value="5" selected>5 rounds</option>
+            <option value="6">6 rounds</option>
+          </select>
+        </div>
+        <div class="flex1"></div>
+        <button class="btn btn-sm btn-danger" onclick="clearPastData()">Clear past data</button>
+      </div>
+      <div class="tbl-wrap" id="past-table-wrap"></div>
+    </div>
+    <div class="alert alert-info" style="font-size:12px"><strong>Tip:</strong> Starting at round 4? Fill in rounds 1–3 here, then go to Generate → round 4 only.</div>
+  </div>
+
+  <!-- ── GENERATE ── -->
+  <div id="page-generate" class="page">
+    <h2>Generate</h2>
+    <p class="page-sub">The scheduler assigns students to hospitals following all rules automatically.</p>
+    <div class="card">
+      <h3>Rounds to generate</h3>
+      <div class="row" style="margin-bottom:14px;flex-wrap:wrap">
+        <div><label>From round</label><select id="gen-from"></select></div>
+        <div><label>To round</label><select id="gen-to"></select></div>
+      </div>
+      <div id="gen-checks" style="margin-bottom:14px"></div>
+      <button class="btn btn-primary" onclick="generateSchedule()">⚡ Generate schedule</button>
+    </div>
+    <div id="gen-result"></div>
+  </div>
+
+  <!-- ── SCHEDULE ── -->
+  <div id="page-schedule" class="page">
+    <h2>Schedule — <span id="schedule-title-display" style="color:var(--text2);font-weight:400"></span></h2>
+    <p class="page-sub">Full rotation table for all students and rounds.</p>
+    <div class="btn-group no-print" style="margin-bottom:16px">
+      <button class="btn" onclick="window.print()">🖨 Print</button>
+      <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn" onclick="copyTable()">📋 Copy</button>
+      <button class="btn btn-primary" onclick="exportDocx()">📄 Download .docx</button>
+    </div>
+    <div id="schedule-stats" class="stat-grid"></div>
+    <div id="conflicts-section"></div>
+    <div class="card">
+      <div class="tbl-wrap"><div id="schedule-table-wrap"></div></div>
+    </div>
+  </div>
+
+  <!-- ── OCCUPANCY DASHBOARD ── -->
+  <div id="page-occupancy" class="page">
+    <h2>Hospital Occupancy</h2>
+    <p class="page-sub">See how many students are assigned to each hospital per round.</p>
+    <div class="btn-group" style="margin-bottom:16px">
+      <button class="btn btn-sm active-filter" id="occ-filter-all" onclick="setOccFilter('all',this)">All rounds</button>
+      <span id="occ-round-btns"></span>
+    </div>
+    <div id="occ-grid" class="occ-grid"></div>
+  </div>
+
+  <!-- ── SAVE / LOAD ── -->
+  <div id="page-data" class="page">
+    <h2>Save / Load</h2>
+    <p class="page-sub">All data is saved automatically in your browser. Use these options to back up or move data.</p>
+
+    <div class="card">
+      <h3>All schedules</h3>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Each schedule (e.g. "4th Year", "3rd Year") is stored separately. You can rename or delete them below.</p>
+      <div id="all-schedules-list"></div>
+    </div>
+
+    <div class="card">
+      <h3>Export / Import</h3>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Download all schedules as a backup file, or load a file from a previous session.</p>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveData()">⬇ Download backup</button>
+        <input type="file" id="load-file" accept=".json" onchange="loadData(event)" style="display:none">
+        <button class="btn" onclick="document.getElementById('load-file').click()">⬆ Load backup file</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Reset everything</h3>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Removes all data including all schedules. Cannot be undone.</p>
+      <button class="btn btn-danger" onclick="resetAll()">Reset all data</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- MODAL: new schedule -->
+<div class="modal-overlay" id="new-sched-modal">
+  <div class="modal">
+    <h3>New schedule</h3>
+    <label>Schedule name</label>
+    <input type="text" id="new-sched-name" placeholder="e.g. 4th Year 2025">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('new-sched-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createSchedule()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: rename schedule -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal">
+    <h3>Rename schedule</h3>
+    <label>New name</label>
+    <input type="text" id="rename-input" placeholder="Schedule name">
+    <input type="hidden" id="rename-id">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('rename-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRename()">Rename</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════
+const DEFAULT_HOSPITALS = [
+  {id:'TASH',name:'TASH (Tikur Anbessa)',capacity:8,required:true},
+  {id:'ZMH',name:'ZMH',capacity:5,required:false},
+  {id:'Gandhi',name:'Gandhi MH',capacity:5,required:false},
+  {id:'Menelik',name:'Menelik II Hospital',capacity:5,required:false},
+  {id:'Yekatit',name:'Yekatit 12 Hospital',capacity:5,required:false},
+  {id:'RasDesta',name:'Ras Desta Hospital',capacity:4,required:false},
+  {id:'AaBET',name:'AaBET Hospital',capacity:4,required:false},
+  {id:'StPaul',name:'St. Paul Hospital',capacity:5,required:false},
+  {id:'Police',name:'Police Hospital',capacity:4,required:false},
+  {id:'Armed',name:'Armed Forces Hospital',capacity:4,required:false},
+  {id:'ALERT',name:'ALERT Hospital',capacity:4,required:false},
+];
+const DB_KEY = 'aau_rotation_v2';
+
+// ═══════════════════════════════════════════════════
+// STATE: multi-schedule
+// schedules: { id: { id, name, hospitals, students, totalRounds, pastRounds, schedule } }
+// activeId: string
+// ═══════════════════════════════════════════════════
+let db = { schedules:{}, activeId:null };
+
+function getActive(){ return db.schedules[db.activeId] || null; }
+function sched(){ return getActive(); }
+
+// ── persist ──
+function persist(){
+  try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e){}
+}
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem(DB_KEY);
+    if(raw){ db = JSON.parse(raw); }
+  } catch(e){}
+  if(!db.schedules) db.schedules={};
+  // ensure at least one schedule
+  const ids = Object.keys(db.schedules);
+  if(ids.length===0){
+    const id = newScheduleObj('Default Schedule');
+    db.activeId = id;
+  } else if(!db.activeId || !db.schedules[db.activeId]){
+    db.activeId = ids[0];
+  }
+  persist();
+}
+
+function newScheduleObj(name){
+  const id = 'sched_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  db.schedules[id]={
+    id, name,
+    hospitals: JSON.parse(JSON.stringify(DEFAULT_HOSPITALS)),
+    students:[],
+    totalRounds:5,
+    pastRounds:{},
+    schedule:{}
+  };
+  return id;
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+let currentPage='hospitals';
+function showPage(name, btn, mobile){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  currentPage = name;
+  // desktop nav
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const db_btn = document.getElementById('nb-'+name);
+  if(db_btn) db_btn.classList.add('active');
+  // mobile nav
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  const mb_btn = document.getElementById('mn-'+name);
+  if(mb_btn) mb_btn.classList.add('active');
+
+  if(name==='hospitals') renderHospitalList();
+  if(name==='students') renderStudentList();
+  if(name==='past') renderPastTable();
+  if(name==='generate') renderGeneratePage();
+  if(name==='schedule') renderSchedulePage();
+  if(name==='occupancy') renderOccupancy('all');
+  if(name==='data') renderDataPage();
+}
+
+// ═══════════════════════════════════════════════════
+// SCHEDULE PICKER
+// ═══════════════════════════════════════════════════
+function renderSchedulePicker(){
+  const sel = document.getElementById('schedule-selector');
+  sel.innerHTML = Object.values(db.schedules).map(s=>
+    `<option value="${s.id}" ${s.id===db.activeId?'selected':''}>${esc(s.name)}</option>`
+  ).join('');
+}
+function switchSchedule(id){
+  if(!db.schedules[id]) return;
+  db.activeId = id;
+  persist();
+  renderSchedulePicker();
+  showPage(currentPage, null, false);
+}
+function openNewScheduleModal(){
+  document.getElementById('new-sched-name').value='';
+  openModal('new-sched-modal');
+  setTimeout(()=>document.getElementById('new-sched-name').focus(),100);
+}
+function createSchedule(){
+  const name = document.getElementById('new-sched-name').value.trim()||'New Schedule';
+  const id = newScheduleObj(name);
+  db.activeId = id;
+  persist();
+  renderSchedulePicker();
+  closeModal('new-sched-modal');
+  showPage('hospitals',null,false);
+}
+
+// ═══════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════
+// HOSPITALS
+// ═══════════════════════════════════════════════════
+function renderHospitalList(){
+  const s=sched(); if(!s) return;
+  const el=document.getElementById('hospital-list');
+  el.innerHTML = s.hospitals.map((h,i)=>`
+    <div class="hosp-item">
+      <div class="hosp-name">${esc(h.name)} ${h.required?'<span class="badge badge-tash">Required</span>':''}</div>
+      <div class="hosp-cap-input"><input type="number" min="1" max="99" value="${h.capacity}" onchange="updateCapacity(${i},this.value)" title="Max students per round"></div>
+      <span style="font-size:11px;color:var(--text3)">/ round</span>
+      ${!h.required?`<button class="btn btn-sm btn-danger btn-icon" onclick="removeHospital(${i})" title="Remove">✕</button>`:'<div style="width:42px"></div>'}
+    </div>`).join('');
+}
+function updateCapacity(i,val){
+  const s=sched(); if(!s) return;
+  s.hospitals[i].capacity=Math.max(1,parseInt(val)||1);
+  persist();
+}
+function toggleAddHosp(){
+  const c=document.getElementById('add-hosp-card');
+  c.style.display=c.style.display==='none'?'block':'none';
+  if(c.style.display==='block') document.getElementById('new-hosp-name').focus();
+}
+function addHospital(){
+  const s=sched(); if(!s) return;
+  const name=document.getElementById('new-hosp-name').value.trim();
+  const cap=parseInt(document.getElementById('new-hosp-cap').value)||5;
+  if(!name){alert('Enter a hospital name.');return;}
+  s.hospitals.push({id:'CUSTOM_'+Date.now(),name,capacity:cap,required:false});
+  persist(); renderHospitalList();
+  document.getElementById('new-hosp-name').value='';
+  document.getElementById('add-hosp-card').style.display='none';
+}
+function removeHospital(i){
+  const s=sched(); if(!s) return;
+  if(!confirm('Remove '+s.hospitals[i].name+'?')) return;
+  const id=s.hospitals[i].id;
+  s.hospitals.splice(i,1);
+  Object.values(s.pastRounds).forEach(r=>{Object.keys(r).forEach(rn=>{if(r[rn]===id)r[rn]=null;});});
+  Object.values(s.schedule).forEach(r=>{Object.keys(r).forEach(rn=>{if(r[rn]===id)delete r[rn];});});
+  persist(); renderHospitalList();
+}
+function resetHospitals(){
+  const s=sched(); if(!s) return;
+  if(!confirm('Reset hospitals to the 11 default AAU hospitals? Custom hospitals will be removed.')) return;
+  s.hospitals=JSON.parse(JSON.stringify(DEFAULT_HOSPITALS));
+  persist(); renderHospitalList();
+  flash('Hospitals reset to defaults.','success');
+}
+
+// ═══════════════════════════════════════════════════
+// STUDENTS
+// ═══════════════════════════════════════════════════
+function importStudents(){
+  const s=sched(); if(!s) return;
+  const raw=document.getElementById('student-paste').value.trim();
+  if(!raw) return;
+  const names=raw.split('\n').map(n=>n.trim()).filter(n=>n.length>0);
+  const existing=new Set(s.students.map(st=>st.name.toLowerCase()));
+  let added=0;
+  names.forEach(name=>{
+    if(!existing.has(name.toLowerCase())){
+      s.students.push({id:'S_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name});
+      existing.add(name.toLowerCase()); added++;
+    }
+  });
+  document.getElementById('student-paste').value='';
+  persist(); renderStudentList();
+  if(added>0) flash(added+' student'+(added>1?'s':'')+' imported.','success');
+}
+function clearStudents(){
+  const s=sched(); if(!s) return;
+  if(!confirm('Remove all students and their data from this schedule?')) return;
+  s.students=[]; s.pastRounds={}; s.schedule={};
+  persist(); renderStudentList();
+}
+function renderStudentList(){
+  const s=sched(); if(!s) return;
+  const card=document.getElementById('student-list-card');
+  const list=document.getElementById('student-list');
+  const badge=document.getElementById('student-count-badge');
+  if(s.students.length===0){card.style.display='none';return;}
+  card.style.display='block';
+  badge.textContent=s.students.length+' students';
+  list.innerHTML=s.students.map((st,i)=>`
+    <li class="student-item">
+      <span class="s-num">${i+1}</span>
+      <span style="flex:1">${esc(st.name)}</span>
+      <button class="btn btn-sm btn-danger btn-icon" onclick="removeStudent('${st.id}')">✕</button>
+    </li>`).join('');
+}
+function removeStudent(id){
+  const s=sched(); if(!s) return;
+  s.students=s.students.filter(st=>st.id!==id);
+  delete s.pastRounds[id]; delete s.schedule[id];
+  persist(); renderStudentList();
+}
+
+// ═══════════════════════════════════════════════════
+// PAST ROUNDS
+// ═══════════════════════════════════════════════════
+function saveTotalRounds(){
+  const s=sched(); if(!s) return;
+  s.totalRounds=parseInt(document.getElementById('total-rounds').value)||5;
+  persist();
+}
+function renderPastTable(){
+  const s=sched(); if(!s) return;
+  document.getElementById('total-rounds').value=s.totalRounds;
+  const wrap=document.getElementById('past-table-wrap');
+  if(s.students.length===0){wrap.innerHTML='<div class="alert alert-warn">No students yet. Add them in the Students page first.</div>';return;}
+  const hospOpts='<option value="">— none —</option>'+s.hospitals.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('');
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  let html=`<table class="past-tbl"><thead><tr><th>Student</th>${rounds.map(r=>`<th>Round ${r}</th>`).join('')}</tr></thead><tbody>`;
+  s.students.forEach(st=>{
+    if(!s.pastRounds[st.id]) s.pastRounds[st.id]={};
+    html+=`<tr><td style="white-space:nowrap;padding:5px 7px;font-size:12px">${esc(st.name)}</td>`;
+    rounds.forEach(r=>{
+      const val=s.pastRounds[st.id][r]||'';
+      const opts=hospOpts.replace(`value="${val}"`,`value="${val}" selected`);
+      html+=`<td><select onchange="setPastRound('${st.id}',${r},this.value)">${opts}</select></td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+}
+function setPastRound(studentId,round,hospId){
+  const s=sched(); if(!s) return;
+  if(!s.pastRounds[studentId]) s.pastRounds[studentId]={};
+  s.pastRounds[studentId][round]=hospId||null;
+  if(!s.schedule[studentId]) s.schedule[studentId]={};
+  s.schedule[studentId][round]=hospId||null;
+  persist();
+}
+function clearPastData(){
+  const s=sched(); if(!s) return;
+  if(!confirm('Clear all past round assignments?')) return;
+  s.pastRounds={}; s.schedule={};
+  persist(); renderPastTable();
+}
+
+// ═══════════════════════════════════════════════════
+// GENERATE
+// ═══════════════════════════════════════════════════
+function renderGeneratePage(){
+  const s=sched(); if(!s) return;
+  const tot=s.totalRounds;
+  const fromSel=document.getElementById('gen-from');
+  const toSel=document.getElementById('gen-to');
+  let firstEmpty=tot+1;
+  for(let r=1;r<=tot;r++){
+    const all=s.students.length>0&&s.students.every(st=>s.pastRounds[st.id]&&s.pastRounds[st.id][r]);
+    if(!all){firstEmpty=r;break;}
+  }
+  firstEmpty=Math.min(firstEmpty,tot);
+  const opts=Array.from({length:tot},(_,i)=>i+1).map(r=>`<option value="${r}"${r===firstEmpty?' selected':''}>Round ${r}</option>`).join('');
+  fromSel.innerHTML=opts;
+  toSel.innerHTML=Array.from({length:tot},(_,i)=>i+1).map(r=>`<option value="${r}"${r===tot?' selected':''}>Round ${r}</option>`).join('');
+  renderGenChecks();
+}
+function renderGenChecks(){
+  const s=sched(); if(!s) return;
+  const el=document.getElementById('gen-checks');
+  const n=s.students.length, h=s.hospitals.length;
+  const totalCap=s.hospitals.reduce((acc,h)=>acc+h.capacity,0);
+  const ok=msg=>`<div class="gen-check"><svg class="check-ok" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>${msg}</div>`;
+  const warn=msg=>`<div class="gen-check"><svg class="check-warn" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>${msg}</div>`;
+  const bad=msg=>`<div class="gen-check"><svg class="check-bad" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>${msg}</div>`;
+  let items=[];
+  if(n===0) items.push(bad('No students — add them first'));
+  else items.push(ok(`${n} students loaded`));
+  if(h===0) items.push(bad('No hospitals configured'));
+  else items.push(ok(`${h} hospitals configured`));
+  if(n>0&&totalCap<n) items.push(warn(`Total capacity ${totalCap} < students ${n} — some may not be placed`));
+  else if(n>0) items.push(ok(`Total capacity ${totalCap} is enough for ${n} students`));
+  const hasTASH=s.hospitals.find(h=>h.id==='TASH');
+  if(hasTASH) items.push(ok('TASH is in the list — every student will get it once'));
+  else items.push(warn('TASH not found — the required TASH rule cannot be enforced'));
+  el.innerHTML=items.join('');
+}
+
+function generateSchedule(){
+  const s=sched(); if(!s) return;
+  const fromRound=parseInt(document.getElementById('gen-from').value);
+  const toRound=parseInt(document.getElementById('gen-to').value);
+  if(fromRound>toRound){showGenResult('From round must be ≤ To round.','danger');return;}
+  if(s.students.length===0){showGenResult('No students to schedule.','danger');return;}
+  if(s.hospitals.length===0){showGenResult('No hospitals configured.','danger');return;}
+
+  const students=s.students;
+  const hospitals=s.hospitals;
+  const totalRounds=s.totalRounds;
+  const assignments={};
+  students.forEach(st=>{
+    assignments[st.id]={};
+    for(let r=1;r<=totalRounds;r++){
+      const past=s.pastRounds[st.id]&&s.pastRounds[st.id][r];
+      if(past) assignments[st.id][r]=past;
+    }
+  });
+
+  const conflicts=[];
+  function shuffle(arr){
+    const a=[...arr];
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+    return a;
+  }
+
+  for(let round=fromRound;round<=toRound;round++){
+    const toAssign=students.filter(st=>!assignments[st.id][round]);
+    const roundCap={};
+    hospitals.forEach(h=>{roundCap[h.id]=h.capacity;});
+    students.filter(st=>assignments[st.id][round]).forEach(st=>{
+      const hid=assignments[st.id][round];
+      if(roundCap[hid]!==undefined) roundCap[hid]--;
+    });
+    const needsTASH=new Set(toAssign.filter(st=>!Object.values(assignments[st.id]).includes('TASH')).map(st=>st.id));
+
+    // Prioritise students who still need TASH and are on their last round
+    const prioritised=shuffle(toAssign).sort((a,b)=>{
+      const aHasTASH=Object.values(assignments[a.id]).includes('TASH');
+      const bHasTASH=Object.values(assignments[b.id]).includes('TASH');
+      // count how many rounds this student still has left after this round
+      const aFuture=Array.from({length:totalRounds-round},(_,i)=>round+1+i).filter(r=>!assignments[a.id][r]).length;
+      const bFuture=Array.from({length:totalRounds-round},(_,i)=>round+1+i).filter(r=>!assignments[b.id][r]).length;
+      const aUrgent=!aHasTASH&&aFuture===0?0:!aHasTASH?1:2;
+      const bUrgent=!bHasTASH&&bFuture===0?0:!bHasTASH?1:2;
+      return aUrgent-bUrgent;
+    });
+
+    prioritised.forEach(st=>{
+      const remainingRounds=[];
+      for(let r=round+1;r<=totalRounds;r++){if(!assignments[st.id][r])remainingRounds.push(r);}
+      const hasTASH=Object.values(assignments[st.id]).includes('TASH');
+      const mustTASHNow=!hasTASH&&remainingRounds.length===0;
+      const shouldTASHNow=!hasTASH&&needsTASH.has(st.id);
+      let chosen=null;
+      if(mustTASHNow||shouldTASHNow){
+        const usedH=new Set(Object.values(assignments[st.id]));
+        if(!usedH.has('TASH')&&roundCap['TASH']>0) chosen='TASH';
+      }
+      if(!chosen){
+        const used=new Set(Object.values(assignments[st.id]));
+        const available=hospitals.filter(h=>!used.has(h.id)&&roundCap[h.id]>0);
+        const tashAvail=available.find(h=>h.id==='TASH');
+        const nonTash=available.filter(h=>h.id!=='TASH');
+        const hasTASHAssigned=Object.values(assignments[st.id]).includes('TASH');
+        if(!hasTASHAssigned&&tashAvail&&nonTash.length===0){chosen='TASH';}
+        else if(!hasTASHAssigned&&tashAvail&&remainingRounds.length===0){chosen='TASH';}
+        else if(available.length>0){
+          const sorted=available.filter(h=>h.id!=='TASH'||hasTASHAssigned);
+          const pick=sorted.length>0?sorted:available;
+          pick.sort((a,b)=>roundCap[b.id]-roundCap[a.id]);
+          const topN=pick.slice(0,Math.min(3,pick.length));
+          chosen=topN[Math.floor(Math.random()*topN.length)].id;
+        }
+      }
+      if(chosen){assignments[st.id][round]=chosen;roundCap[chosen]--;}
+      else{conflicts.push(`Round ${round}: No available hospital for ${st.name}`);assignments[st.id][round]=null;}
+    });
+  }
+
+  students.forEach(st=>{
+    if(!Object.values(assignments[st.id]).includes('TASH'))
+      conflicts.push(`${st.name} has no TASH assignment across all rounds`);
+  });
+
+  students.forEach(st=>{s.schedule[st.id]=assignments[st.id];});
+  persist();
+
+  const msg=`Schedule generated for round${fromRound===toRound?` ${fromRound}`:`s ${fromRound}–${toRound}`}.`;
+  showGenResult(msg,conflicts.length===0?'success':'warn',conflicts);
+}
+
+function showGenResult(msg,type,conflicts){
+  const el=document.getElementById('gen-result');
+  let html=`<div class="alert alert-${type}">${msg}</div>`;
+  if(conflicts&&conflicts.length>0){
+    html+=`<div class="card"><h3>⚠ Notices (${conflicts.length})</h3>`;
+    conflicts.forEach(c=>{html+=`<div class="conflict-item">${esc(c)}</div>`;});
+    html+=`<p style="font-size:12px;color:var(--text3);margin-top:8px">Adjust capacities or add more hospitals to resolve.</p></div>`;
+  }
+  if(type!=='danger'){
+    html+=`<button class="btn btn-primary mt8" onclick="showPage('schedule')">View schedule →</button>`;
+  }
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════
+// SCHEDULE VIEW
+// ═══════════════════════════════════════════════════
+function renderSchedulePage(){
+  const s=sched(); if(!s) return;
+  document.getElementById('schedule-title-display').textContent=s.name;
+  const wrap=document.getElementById('schedule-table-wrap');
+  const statsEl=document.getElementById('schedule-stats');
+  const conflEl=document.getElementById('conflicts-section');
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  const hospMap=Object.fromEntries(s.hospitals.map(h=>[h.id,h]));
+  if(s.students.length===0){wrap.innerHTML='<div class="empty-state">No students yet.</div>';statsEl.innerHTML='';conflEl.innerHTML='';return;}
+  const tashDone=s.students.filter(st=>Object.values(s.schedule[st.id]||{}).includes('TASH')).length;
+  statsEl.innerHTML=`
+    <div class="stat-card"><div class="stat-num">${s.students.length}</div><div class="stat-label">Students</div></div>
+    <div class="stat-card"><div class="stat-num">${s.hospitals.length}</div><div class="stat-label">Hospitals</div></div>
+    <div class="stat-card"><div class="stat-num">${s.totalRounds}</div><div class="stat-label">Rounds</div></div>
+    <div class="stat-card"><div class="stat-num">${tashDone}/${s.students.length}</div><div class="stat-label">TASH assigned</div></div>`;
+  const conflicts=[];
+  s.students.forEach(st=>{
+    const sc=s.schedule[st.id]||{};
+    const seen={};
+    rounds.forEach(r=>{const hid=sc[r];if(!hid)return;if(seen[hid])conflicts.push(`${st.name}: ${hospMap[hid]?.name||hid} appears twice (rounds ${seen[hid]} & ${r})`);seen[hid]=r;});
+    if(!Object.values(sc).includes('TASH')) conflicts.push(`${st.name}: no TASH assignment`);
+  });
+  conflEl.innerHTML=conflicts.length===0
+    ?'<div class="alert alert-success">✓ No conflicts — all rules satisfied.</div>'
+    :`<div class="card" style="border-color:#FECACA"><h3>⚠ Conflicts</h3>${conflicts.map(c=>`<div class="conflict-item">${esc(c)}</div>`).join('')}</div>`;
+  let html=`<table class="schedule-tbl"><thead><tr><th>#</th><th>Student</th>${rounds.map(r=>`<th>Round ${r}</th>`).join('')}</tr></thead><tbody>`;
+  s.students.forEach((st,i)=>{
+    const sc=s.schedule[st.id]||{};
+    html+=`<tr><td style="color:var(--text3);font-size:11px">${i+1}</td><td style="font-weight:500;white-space:nowrap">${esc(st.name)}</td>`;
+    rounds.forEach(r=>{
+      const hid=sc[r];
+      if(!hid){html+=`<td><span class="cell-empty">—</span></td>`;return;}
+      const name=hospMap[hid]?.name||hid;
+      html+=hid==='TASH'?`<td><span class="cell-tash">${esc(name)}</span></td>`:`<td>${esc(name)}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════
+// OCCUPANCY DASHBOARD
+// ═══════════════════════════════════════════════════
+let occFilter='all';
+function setOccFilter(f,btn){
+  occFilter=f;
+  document.querySelectorAll('.occ-filter-btn,.active-filter').forEach(b=>b.classList.remove('active-filter'));
+  if(btn) btn.classList.add('active-filter');
+  renderOccupancy(f);
+}
+function renderOccupancy(filter){
+  const s=sched(); if(!s) return;
+  occFilter=filter;
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  // render round filter buttons
+  const rbWrap=document.getElementById('occ-round-btns');
+  rbWrap.innerHTML=rounds.map(r=>`<button class="btn btn-sm occ-filter-btn${occFilter===r?' active-filter':''}" onclick="setOccFilter(${r},this)">Round ${r}</button>`).join(' ');
+  const hospMap=Object.fromEntries(s.hospitals.map(h=>[h.id,h]));
+  const grid=document.getElementById('occ-grid');
+  if(s.students.length===0){grid.innerHTML='<div class="empty-state">No students or schedule generated yet.</div>';return;}
+  const showRounds=filter==='all'?rounds:[filter];
+  let html='';
+  s.hospitals.forEach(hosp=>{
+    html+=`<div class="occ-card"><div class="occ-card-title">${esc(hosp.name)}${hosp.required?` <span class="badge badge-tash">Required</span>`:''}</div>`;
+    showRounds.forEach(r=>{
+      const assigned=s.students.filter(st=>(s.schedule[st.id]||{})[r]===hosp.id);
+      const pct=Math.round((assigned.length/hosp.capacity)*100);
+      const barClass=assigned.length>=hosp.capacity?'full':assigned.length/hosp.capacity>0.8?'warn':'';
+      html+=`<div class="occ-round">
+        <div class="occ-round-label">Round ${r} — ${assigned.length}/${hosp.capacity} <span class="badge ${assigned.length>=hosp.capacity?'badge-danger':assigned.length>0?'badge-green':'badge-grey'}">${pct}%</span></div>
+        <div class="occ-bar-wrap"><div class="occ-bar ${barClass}" style="width:${Math.min(pct,100)}%"></div></div>
+        <div class="occ-students">${assigned.length>0?assigned.map(st=>`<span class="occ-student-tag">${esc(st.name)}</span>`).join(''):'<span style="color:var(--text3);font-size:11px">No one assigned</span>'}</div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  grid.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════
+// DATA PAGE
+// ═══════════════════════════════════════════════════
+function renderDataPage(){
+  const list=document.getElementById('all-schedules-list');
+  list.innerHTML=Object.values(db.schedules).map(s=>`
+    <div class="row-center" style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;font-size:14px;font-weight:500">${esc(s.name)}</div>
+      <span class="badge badge-grey" style="margin-right:8px">${s.students.length} students</span>
+      <button class="btn btn-sm" onclick="openRenameModal('${s.id}','${esc(s.name)}')">Rename</button>
+      ${Object.keys(db.schedules).length>1?`<button class="btn btn-sm btn-danger" onclick="deleteSchedule('${s.id}')">Delete</button>`:''}
+    </div>`).join('')||'<div class="empty-state">No schedules yet.</div>';
+}
+function openRenameModal(id,name){
+  document.getElementById('rename-id').value=id;
+  document.getElementById('rename-input').value=name;
+  openModal('rename-modal');
+  setTimeout(()=>document.getElementById('rename-input').focus(),100);
+}
+function confirmRename(){
+  const id=document.getElementById('rename-id').value;
+  const name=document.getElementById('rename-input').value.trim();
+  if(!name||!db.schedules[id]) return;
+  db.schedules[id].name=name;
+  persist(); renderSchedulePicker(); renderDataPage();
+  closeModal('rename-modal');
+}
+function deleteSchedule(id){
+  if(!confirm('Delete this schedule? This cannot be undone.')) return;
+  delete db.schedules[id];
+  if(db.activeId===id) db.activeId=Object.keys(db.schedules)[0]||null;
+  if(!db.activeId){const nid=newScheduleObj('Default Schedule');db.activeId=nid;}
+  persist(); renderSchedulePicker(); renderDataPage();
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT: CSV + clipboard
+// ═══════════════════════════════════════════════════
+function exportCSV(){
+  const s=sched(); if(!s) return;
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  const hospMap=Object.fromEntries(s.hospitals.map(h=>[h.id,h.name]));
+  let csv='Student,'+rounds.map(r=>'Round '+r).join(',')+'\n';
+  s.students.forEach(st=>{
+    const sc=s.schedule[st.id]||{};
+    csv+=`"${st.name}",`+rounds.map(r=>{const hid=sc[r];return hid?`"${hospMap[hid]||hid}"`:''}).join(',')+'\n';
+  });
+  downloadFile(s.name.replace(/\s+/g,'_')+'_schedule.csv',csv,'text/csv');
+}
+function copyTable(){
+  const s=sched(); if(!s) return;
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  const hospMap=Object.fromEntries(s.hospitals.map(h=>[h.id,h.name]));
+  let txt='Student\t'+rounds.map(r=>'Round '+r).join('\t')+'\n';
+  s.students.forEach(st=>{
+    const sc=s.schedule[st.id]||{};
+    txt+=st.name+'\t'+rounds.map(r=>{const hid=sc[r];return hid?(hospMap[hid]||hid):''}).join('\t')+'\n';
+  });
+  navigator.clipboard.writeText(txt).then(()=>flash('Table copied — paste into Excel.','success'));
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT: DOCX (via docx-js CDN)
+// ═══════════════════════════════════════════════════
+function exportDocx(){
+  const s=sched(); if(!s) return;
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  const hospMap=Object.fromEntries(s.hospitals.map(h=>[h.id,h.name]));
+
+  let html='<html><head><meta charset="UTF-8"></head><body>';
+  html+=`<h1 style="color:#1C5F8B;font-family:Arial">AAU — Anesthesia Clinical Rotation Schedule</h1>`;
+  html+=`<p style="font-family:Arial;color:#5A574E">${esc(s.name)}</p>`;
+  html+=`<p style="font-family:Arial;color:#9C9890;font-size:12px">Generated: ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} · ${s.students.length} students · ${s.totalRounds} rounds</p>`;
+  html+='<br>';
+  html+='<table border="1" style="border-collapse:collapse;width:100%;font-family:Arial;font-size:12px">';
+  html+='<tr style="background:#1C5F8B;color:white"><th style="padding:8px;text-align:left">Student</th>';
+  rounds.forEach(r=>{html+=`<th style="padding:8px;text-align:center">Round ${r}</th>`;});
+  html+='</tr>';
+  s.students.forEach((st,i)=>{
+    const sc=s.schedule[st.id]||{};
+    const bg=i%2===1?'#F7F6F3':'#FFFFFF';
+    html+=`<tr style="background:${bg}"><td style="padding:6px 8px;font-weight:600">${esc(st.name)}</td>`;
+    rounds.forEach(r=>{
+      const hid=sc[r];
+      const name=hid?(hospMap[hid]||hid):'—';
+      const style=hid==='TASH'?'background:#FEF0E6;color:#7A2E0E;font-weight:bold':'';
+      html+=`<td style="padding:6px 8px;text-align:center;${style}">${esc(name)}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</table></body></html>';
+
+  const blob=new Blob([html],{type:'application/msword'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=s.name.replace(/\s+/g,'_')+'_schedule.doc';
+  a.click();
+  flash('Word document downloaded!','success');
+}
+
+// ═══════════════════════════════════════════════════
+// SAVE / LOAD (full backup)
+// ═══════════════════════════════════════════════════
+function saveData(){
+  const data=JSON.stringify({version:2,...db},null,2);
+  downloadFile('aau_rotation_backup.json',data,'application/json');
+}
+function loadData(event){
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.schedules) db.schedules=data.schedules;
+      if(data.activeId&&db.schedules[data.activeId]) db.activeId=data.activeId;
+      else if(Object.keys(db.schedules).length>0) db.activeId=Object.keys(db.schedules)[0];
+      persist(); renderSchedulePicker(); renderDataPage();
+      showPage(currentPage);
+      flash('Data loaded successfully!','success');
+    } catch(e){ flash('Error loading file.','danger'); }
+  };
+  reader.readAsText(file);
+  event.target.value='';
+}
+function resetAll(){
+  if(!confirm('Reset everything? All schedules will be deleted.')) return;
+  db={schedules:{},activeId:null};
+  const id=newScheduleObj('Default Schedule');
+  db.activeId=id; persist();
+  renderSchedulePicker(); showPage('hospitals');
+  flash('All data reset.','warn');
+}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function esc(str){if(!str)return'';return(''+str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function downloadFile(name,content,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name; a.click();
+}
+function flash(msg,type){
+  const el=document.createElement('div');
+  el.className=`alert alert-${type}`;
+  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:300;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.15);min-width:200px;text-align:center';
+  el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+loadFromStorage();
+renderSchedulePicker();
+renderHospitalList();
+
+// close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o) o.classList.remove('open');});
+});
+</script>
+</body>
+</html>
