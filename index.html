@@ -441,6 +441,7 @@ textarea{resize:vertical;min-height:80px}
       <button class="btn" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn" onclick="copyTable()">📋 Copy</button>
       <button class="btn btn-primary" onclick="exportDocx()">📄 Download .docx</button>
+      <button class="btn btn-primary" onclick="exportPDF()">📄 Download PDF</button>
     </div>
     <div id="schedule-stats" class="stat-grid"></div>
     <div id="conflicts-section"></div>
@@ -1077,6 +1078,59 @@ function copyTable(){
   navigator.clipboard.writeText(txt).then(()=>flash('Table copied — paste into Excel.','success'));
 }
 
+// ═══════════════════════════════════════════════════
+// EXPORT: PDF
+// ═══════════════════════════════════════════════════
+function exportPDF(){
+  const s=sched(); if(!s) return;
+  const rounds=Array.from({length:s.totalRounds},(_,i)=>i+1);
+  const hospMap=Object.fromEntries(s.hospitals.map(h=>[h.id,h.name]));
+
+  const win=window.open('','_blank');
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>${esc(s.name)} — Rotation Schedule</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;padding:20px;color:#111}
+    h1{font-size:18px;color:#1C5F8B;margin-bottom:4px}
+    .sub{font-size:12px;color:#5A574E;margin-bottom:2px}
+    .meta{font-size:10px;color:#9C9890;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th{background:#1C5F8B;color:white;padding:7px 6px;text-align:left;font-size:11px}
+    th:not(:first-child){text-align:center}
+    td{padding:5px 6px;border-bottom:1px solid #E0DDD6;font-size:11px}
+    td:not(:first-child){text-align:center}
+    tr:nth-child(even) td{background:#F7F6F3}
+    .tash{background:#FEF0E6!important;color:#7A2E0E;font-weight:bold}
+    .name{font-weight:600}
+    @media print{body{padding:0}button{display:none}}
+  </style>
+  </head><body>
+  <h1>AAU — Anesthesia Clinical Rotation Schedule</h1>
+  <div class="sub">${esc(s.name)}</div>
+  <div class="meta">Generated: ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} · ${s.students.length} students · ${s.totalRounds} rounds</div>
+  <button onclick="window.print()" style="margin-bottom:12px;padding:8px 18px;background:#1C5F8B;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 Print / Save as PDF</button>
+  <table>
+  <thead><tr><th>Student</th>${rounds.map(r=>`<th>Round ${r}</th>`).join('')}</tr></thead>
+  <tbody>`;
+
+  s.students.forEach((st,i)=>{
+    const sc=s.schedule[st.id]||{};
+    html+=`<tr><td class="name">${esc(st.name)}</td>`;
+    rounds.forEach(r=>{
+      const hid=sc[r];
+      const name=hid?(hospMap[hid]||hid):'—';
+      html+=`<td class="${hid==='TASH'?'tash':''}">${esc(name)}</td>`;
+    });
+    html+='</tr>';
+  });
+
+  html+=`</tbody></table></body></html>`;
+  win.document.write(html);
+  win.document.close();
+  setTimeout(()=>win.print(),500);
+}
+  
 // ═══════════════════════════════════════════════════
 // EXPORT: DOCX (via docx-js CDN)
 // ═══════════════════════════════════════════════════
